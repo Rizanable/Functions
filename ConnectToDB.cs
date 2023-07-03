@@ -18,7 +18,7 @@ public static class ConnectToDB
         string connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
 
         // Query the database to check for updates
-        string query = "SELECT * FROM audiometadata";
+        string query = "SELECT * FROM playbackstats";
 
         using (SqlConnection connection = new SqlConnection(connectionString))
         {
@@ -29,19 +29,21 @@ public static class ConnectToDB
                 // Execute the query and retrieve the updated data
                 using (SqlDataReader reader = await command.ExecuteReaderAsync())
                 {
-                    List<DatabaseRecord> updatedRecords = new List<DatabaseRecord>();
+                    List<PlaybackStatRecord> updatedRecords = new List<PlaybackStatRecord>();
 
                     while (await reader.ReadAsync())
                     {
                         // Process the retrieved data
-                        // Assuming the DatabaseRecord class represents the structure of your table
-                        DatabaseRecord record = new DatabaseRecord
+                        // Assuming the PlaybackStatRecord class represents the structure of your table
+                        PlaybackStatRecord record = new PlaybackStatRecord
                         {
-                            Aid = reader.GetInt32(0),
-                            AName = reader.GetString(1),
-                            ACreator = reader.GetString(2),
-                            ADuration = reader.GetTimeSpan(3),
-                            ALocation = reader.GetString(4)
+                            Pid = reader.GetInt32(0),
+                            AudioId = reader.GetInt32(1),
+                            ListeningDuration = reader.GetTimeSpan(2),
+                            TimeOfPlayback = reader.GetDateTime(3),
+                            PlaybackLocationX = reader.GetFloat(4),
+                            PlaybackLocationY = reader.GetFloat(5),
+                            PlaybackLocationZ = reader.GetFloat(6)
                         };
 
                         updatedRecords.Add(record);
@@ -56,7 +58,7 @@ public static class ConnectToDB
         log.LogInformation($"Database update function executed at: {DateTime.Now}");
     }
 
-    private static async Task SendUpdatesToClients(List<DatabaseRecord> records, IAsyncCollector<SignalRMessage> signalRMessages)
+    private static async Task SendUpdatesToClients(List<PlaybackStatRecord> records, IAsyncCollector<SignalRMessage> signalRMessages)
     {
         // Create a message containing the updated records
         var message = new SignalRMessage
@@ -68,13 +70,15 @@ public static class ConnectToDB
         // Send the message to the "updates" hub in SignalR
         await signalRMessages.AddAsync(message);
     }
-    public class DatabaseRecord
-{
-    public int Aid { get; set; }
-    public string AName { get; set; }
-    public string ACreator { get; set; }
-    public TimeSpan ADuration { get; set; }
-    public string ALocation { get; set; }
-}
 
+    public class PlaybackStatRecord
+    {
+        public int Pid { get; set; }
+        public int AudioId { get; set; }
+        public TimeSpan ListeningDuration { get; set; }
+        public DateTime TimeOfPlayback { get; set; }
+        public float PlaybackLocationX { get; set; }
+        public float PlaybackLocationY { get; set; }
+        public float PlaybackLocationZ { get; set; }
+    }
 }
