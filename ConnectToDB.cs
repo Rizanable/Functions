@@ -1,17 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Extensions.SignalRService;
 using Microsoft.Extensions.Logging;
 
-public static class DatabaseUpdateFunction
+public static class ConnectToDB
 {
     [FunctionName("DatabaseUpdateFunction")]
-    public static void Run(
+    public static async Task Run(
         [TimerTrigger("0 */5 * * * *")] TimerInfo timer,
         [SignalR(HubName = "updates")] IAsyncCollector<SignalRMessage> signalRMessages,
         ILogger log)
@@ -24,16 +22,16 @@ public static class DatabaseUpdateFunction
 
         using (SqlConnection connection = new SqlConnection(connectionString))
         {
-            connection.Open();
+            await connection.OpenAsync();
 
             using (SqlCommand command = new SqlCommand(query, connection))
             {
                 // Execute the query and retrieve the updated data
-                using (SqlDataReader reader = command.ExecuteReader())
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
                 {
                     List<DatabaseRecord> updatedRecords = new List<DatabaseRecord>();
 
-                    while (reader.Read())
+                    while (await reader.ReadAsync())
                     {
                         // Process the retrieved data
                         // Assuming the DatabaseRecord class represents the structure of your table
@@ -50,7 +48,7 @@ public static class DatabaseUpdateFunction
                     }
 
                     // Send the updated records to connected clients via SignalR
-                    SendUpdatesToClients(updatedRecords, signalRMessages).GetAwaiter().GetResult();
+                    await SendUpdatesToClients(updatedRecords, signalRMessages);
                 }
             }
         }
@@ -70,4 +68,13 @@ public static class DatabaseUpdateFunction
         // Send the message to the "updates" hub in SignalR
         await signalRMessages.AddAsync(message);
     }
+    public class DatabaseRecord
+{
+    public int Aid { get; set; }
+    public string AName { get; set; }
+    public string ACreator { get; set; }
+    public TimeSpan ADuration { get; set; }
+    public string ALocation { get; set; }
+}
+
 }
